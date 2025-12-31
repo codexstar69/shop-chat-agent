@@ -26,3 +26,6 @@ embedded = false
 redirect_uris = [
   "https://shop-chat-agent-xi.vercel.app/auth/callback"
 ]
+javascript_origins = [
+  "https://shop-chat-agent-xi.vercel.app"
+]
