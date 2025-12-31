@@ -3,7 +3,7 @@
 client_id = "e264c36393b92fc43bb1d4910109e2f1"
 name = "Armour Guards Chat"
 handle = "armour-guards-chat-2024"
-application_url = "https://shop-chat-agent.com"
+application_url = "https://shop-chat-agent-xi.vercel.app"
 embedded = true
 
 [build]
@@ -17,12 +17,12 @@ api_version = "2025-04"
 scopes = "customer_read_customers,customer_read_orders,customer_read_store_credit_account_transactions,customer_read_store_credit_accounts,unauthenticated_read_product_listings"
 
 [auth]
-redirect_urls = [ "https://shop-chat-agent.com/auth/callback" ]
+redirect_urls = [ "https://shop-chat-agent-xi.vercel.app/auth/callback" ]
 
 [pos]
 embedded = false
 
 [customer_authentication]
 redirect_uris = [
-  "https://shop-chat-agent.com/auth/callback"
+  "https://shop-chat-agent-xi.vercel.app/auth/callback"
 ]
