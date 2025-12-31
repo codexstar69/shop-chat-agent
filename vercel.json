@@ -5,10 +5,5 @@
   "outputDirectory": "build/client",
   "rewrites": [
     { "source": "/(.*)", "destination": "/api" }
-  ],
-  "functions": {
-    "api/index.js": {
-      "maxDuration": 30
-    }
-  }
+  ]
 }
