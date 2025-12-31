@@ -1,20 +1,14 @@
 {
+  "version": 2,
   "buildCommand": "npm run vercel-build",
-  "outputDirectory": "build/client",
   "installCommand": "npm install",
-  "framework": null,
+  "outputDirectory": "build/client",
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/api" }
+  ],
   "functions": {
-    "build/server/index.js": {
+    "api/index.js": {
       "maxDuration": 30
     }
-  },
-  "rewrites": [
-    {
-      "source": "/(.*)",
-      "destination": "/build/server/index.js"
-    }
-  ],
-  "env": {
-    "NODE_ENV": "production"
   }
 }

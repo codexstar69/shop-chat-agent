@@ -8,18 +8,6 @@
   'use strict';
 
   /**
-   * Sanitize HTML to prevent XSS attacks
-   * @param {string} str - String to sanitize
-   * @returns {string} Sanitized string
-   */
-  function sanitizeHtml(str) {
-    if (typeof str !== 'string') return '';
-    const div = document.createElement('div');
-    div.textContent = str;
-    return div.innerHTML;
-  }
-
-  /**
    * Application namespace to prevent global scope pollution
    */
   const ShopAIChat = {
@@ -425,7 +413,7 @@
         for (let i = 0; i < lines.length; i++) {
           const line = lines[i];
           const unorderedMatch = line.match(/^\s*([-*])\s+(.*)/);
-          const orderedMatch = line.match(/^\s*(\d+)[\.)]\s+(.*)/);
+          const orderedMatch = line.match(/^\s*(\d+)[.)]\s+(.*)/);
 
           if (unorderedMatch) {
             if (currentList !== 'ul') {
@@ -522,6 +510,7 @@
           currentMessageElement = messageElement;
 
           // Process the stream
+          // eslint-disable-next-line no-constant-condition
           while (true) {
             const { value, done } = await reader.read();
             if (done) break;
@@ -610,7 +599,7 @@
             }
             break;
 
-          case 'new_message':
+          case 'new_message': {
             ShopAIChat.Formatting.formatMessageContent(currentMessageElement);
             ShopAIChat.UI.showTypingIndicator();
 
@@ -624,6 +613,7 @@
             // Update the current element reference
             updateCurrentElement(newMessageElement);
             break;
+          }
 
           case 'content_block_complete':
             ShopAIChat.UI.showTypingIndicator();

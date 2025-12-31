@@ -47,7 +47,7 @@ export function validateMessage(message) {
 
   // Basic sanitization - remove control characters but preserve normal text
   const sanitized = trimmed
-    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '') // Remove control characters
+    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '') // eslint-disable-line no-control-regex
     .trim();
 
   return { valid: true, message: sanitized };

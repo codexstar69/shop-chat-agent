@@ -1,3 +1,4 @@
+/* global process */
 import { getCodeVerifier, storeCustomerToken, getCustomerAccountUrls } from "../db.server";
 
 /**

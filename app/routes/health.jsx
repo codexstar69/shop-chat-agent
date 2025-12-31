@@ -1,10 +1,11 @@
+/* global process */
 /**
  * Health Check Endpoint
  * Used for monitoring and orchestration (k8s, load balancers, etc.)
  */
 import prisma from "../db.server";
 
-export async function loader({ request }) {
+export async function loader() {
   const checks = {
     status: "healthy",
     timestamp: new Date().toISOString(),
@@ -21,8 +22,10 @@ export async function loader({ request }) {
     checks.status = "unhealthy";
   }
 
-  // Environment check
-  const requiredEnvVars = ["SHOPIFY_API_KEY", "CLAUDE_API_KEY"];
+  // Environment check - dynamically check based on AI provider
+  const aiProvider = process.env.AI_PROVIDER || 'gemini';
+  const aiKeyVar = aiProvider === 'claude' ? 'CLAUDE_API_KEY' : 'GOOGLE_API_KEY';
+  const requiredEnvVars = ["SHOPIFY_API_KEY", aiKeyVar];
   const missingVars = requiredEnvVars.filter((v) => !process.env[v]);
   if (missingVars.length > 0) {
     checks.checks.environment = {
