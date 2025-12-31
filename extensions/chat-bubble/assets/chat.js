@@ -8,6 +8,18 @@
   'use strict';
 
   /**
+   * Sanitize HTML to prevent XSS attacks
+   * @param {string} str - String to sanitize
+   * @returns {string} Sanitized string
+   */
+  function sanitizeHtml(str) {
+    if (typeof str !== 'string') return '';
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  /**
    * Application namespace to prevent global scope pollution
    */
   const ShopAIChat = {
@@ -401,6 +413,8 @@
        * @returns {string} HTML content
        */
       convertMarkdownToHtml: function(text) {
+        // Note: Links are already processed before this function is called
+        // Bold text processing
         text = text.replace(/(\*\*|__)(.*?)\1/g, '<strong>$2</strong>');
         const lines = text.split('\n');
         let currentList = null;
@@ -475,13 +489,14 @@
 
         try {
           const promptType = window.shopChatConfig?.promptType || "standardAssistant";
+          const apiUrl = window.shopChatConfig?.apiUrl || 'https://localhost:3458';
           const requestBody = JSON.stringify({
             message: userMessage,
             conversation_id: conversationId,
             prompt_type: promptType
           });
 
-          const streamUrl = 'https://localhost:3458/chat';
+          const streamUrl = `${apiUrl}/chat`;
           const shopId = window.shopId;
 
           const response = await fetch(streamUrl, {
@@ -630,7 +645,8 @@
           messagesContainer.appendChild(loadingMessage);
 
           // Fetch history from the server
-          const historyUrl = `https://localhost:3458/chat?history=true&conversation_id=${encodeURIComponent(conversationId)}`;
+          const apiUrl = window.shopChatConfig?.apiUrl || 'https://localhost:3458';
+          const historyUrl = `${apiUrl}/chat?history=true&conversation_id=${encodeURIComponent(conversationId)}`;
           console.log('Fetching history from:', historyUrl);
 
           const response = await fetch(historyUrl, {
@@ -779,8 +795,8 @@
           attemptCount++;
 
           try {
-            const tokenUrl = 'https://localhost:3458/auth/token-status?conversation_id=' +
-              encodeURIComponent(conversationId);
+            const apiUrl = window.shopChatConfig?.apiUrl || 'https://localhost:3458';
+            const tokenUrl = `${apiUrl}/auth/token-status?conversation_id=${encodeURIComponent(conversationId)}`;
             const response = await fetch(tokenUrl);
 
             if (!response.ok) {

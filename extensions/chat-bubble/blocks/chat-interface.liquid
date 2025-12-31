@@ -34,7 +34,8 @@
 <script>
   window.shopChatConfig = {
     promptType: {{ block.settings.system_prompt | json }},
-    welcomeMessage: {{ block.settings.welcome_message | json }}
+    welcomeMessage: {{ block.settings.welcome_message | json }},
+    apiUrl: {{ block.settings.api_url | json }}
   };
   window.shopId = {{ shop.id }};
 </script>
@@ -44,6 +45,13 @@
   "name": "AI Chat Assistant",
   "target": "body",
   "settings": [
+    {
+      "type": "text",
+      "id": "api_url",
+      "label": "Chat API URL",
+      "info": "The URL of your chat backend (e.g., https://your-app.railway.app)",
+      "default": "https://localhost:3458"
+    },
     {
       "type": "color",
       "id": "chat_bubble_color",
@@ -59,7 +67,7 @@
     {
       "type": "select",
       "id": "system_prompt",
-      "label": "System Prompt",
+      "label": "AI Personality",
       "options": [
         {
           "value": "standardAssistant",

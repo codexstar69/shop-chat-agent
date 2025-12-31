@@ -6,12 +6,14 @@ import MCPClient from "../mcp-client";
 import { saveMessage, getConversationHistory, storeCustomerAccountUrls, getCustomerAccountUrls as getCustomerAccountUrlsFromDb } from "../db.server";
 import AppConfig from "../services/config.server";
 import { createSseStream } from "../services/streaming.server";
-import { createClaudeService } from "../services/claude.server";
+import { createGeminiService } from "../services/gemini.server";
 import { createToolService } from "../services/tool.server";
+import { validateMessage, validateConversationId, validatePromptType, validateOrigin } from "../services/validation.server";
+import { checkRateLimit, createRateLimitResponse, getRateLimitHeaders } from "../services/ratelimit.server";
 
 
 /**
- * Rract Router loader function for handling GET requests
+ * React Router loader function for handling GET requests
  */
 export async function loader({ request }) {
   // Handle OPTIONS requests (CORS preflight)
@@ -22,63 +24,123 @@ export async function loader({ request }) {
     });
   }
 
+  // Validate origin for CORS
+  const origin = request.headers.get("Origin");
+  if (origin && !validateOrigin(origin)) {
+    return new Response(JSON.stringify({ error: "Origin not allowed" }), {
+      status: 403,
+      headers: { "Content-Type": "application/json" }
+    });
+  }
+
+  // Check rate limit
+  const rateLimit = checkRateLimit(request);
+  if (!rateLimit.allowed) {
+    return createRateLimitResponse(request, rateLimit);
+  }
+
   const url = new URL(request.url);
 
   // Handle history fetch requests - matches /chat?history=true&conversation_id=XYZ
   if (url.searchParams.has('history') && url.searchParams.has('conversation_id')) {
-    return handleHistoryRequest(request, url.searchParams.get('conversation_id'));
+    const conversationIdParam = url.searchParams.get('conversation_id');
+    const validatedId = validateConversationId(conversationIdParam);
+
+    if (!validatedId.valid) {
+      return new Response(JSON.stringify({ error: validatedId.error }), {
+        status: 400,
+        headers: getCorsHeaders(request)
+      });
+    }
+
+    return handleHistoryRequest(request, validatedId.id, rateLimit);
   }
 
   // Handle SSE requests
   if (!url.searchParams.has('history') && request.headers.get("Accept") === "text/event-stream") {
-    return handleChatRequest(request);
+    return handleChatRequest(request, rateLimit);
   }
 
   // API-only: reject all other requests
-  return new Response(JSON.stringify({ error: AppConfig.errorMessages.apiUnsupported }), { status: 400, headers: getCorsHeaders(request) });
+  return new Response(JSON.stringify({ error: AppConfig.errorMessages.apiUnsupported }), {
+    status: 400,
+    headers: getCorsHeaders(request)
+  });
 }
 
 /**
  * React Router action function for handling POST requests
  */
 export async function action({ request }) {
-  return handleChatRequest(request);
+  // Validate origin for CORS
+  const origin = request.headers.get("Origin");
+  if (origin && !validateOrigin(origin)) {
+    return new Response(JSON.stringify({ error: "Origin not allowed" }), {
+      status: 403,
+      headers: { "Content-Type": "application/json" }
+    });
+  }
+
+  // Check rate limit
+  const rateLimit = checkRateLimit(request);
+  if (!rateLimit.allowed) {
+    return createRateLimitResponse(request, rateLimit);
+  }
+
+  return handleChatRequest(request, rateLimit);
 }
 
 /**
  * Handle history fetch requests
  * @param {Request} request - The request object
  * @param {string} conversationId - The conversation ID
+ * @param {Object} rateLimit - Rate limit info
  * @returns {Response} JSON response with chat history
  */
-async function handleHistoryRequest(request, conversationId) {
+async function handleHistoryRequest(request, conversationId, rateLimit) {
   const messages = await getConversationHistory(conversationId);
 
-  return new Response(JSON.stringify({ messages }), { headers: getCorsHeaders(request) });
+  return new Response(JSON.stringify({ messages }), {
+    headers: {
+      ...getCorsHeaders(request),
+      ...getRateLimitHeaders(rateLimit),
+    }
+  });
 }
 
 /**
  * Handle chat requests (both GET and POST)
  * @param {Request} request - The request object
+ * @param {Object} rateLimit - Rate limit info
  * @returns {Response} Server-sent events stream
  */
-async function handleChatRequest(request) {
+async function handleChatRequest(request, rateLimit) {
   try {
     // Get message data from request body
     const body = await request.json();
-    const userMessage = body.message;
 
-    // Validate required message
-    if (!userMessage) {
+    // Validate message
+    const messageValidation = validateMessage(body.message);
+    if (!messageValidation.valid) {
       return new Response(
-        JSON.stringify({ error: AppConfig.errorMessages.missingMessage }),
+        JSON.stringify({ error: messageValidation.error }),
         { status: 400, headers: getSseHeaders(request) }
       );
     }
+    const userMessage = messageValidation.message;
 
-    // Generate or use existing conversation ID
-    const conversationId = body.conversation_id || Date.now().toString();
-    const promptType = body.prompt_type || AppConfig.api.defaultPromptType;
+    // Validate conversation ID
+    const conversationIdValidation = validateConversationId(body.conversation_id);
+    if (!conversationIdValidation.valid) {
+      return new Response(
+        JSON.stringify({ error: conversationIdValidation.error }),
+        { status: 400, headers: getSseHeaders(request) }
+      );
+    }
+    const conversationId = conversationIdValidation.id;
+
+    // Validate prompt type
+    const promptType = validatePromptType(body.prompt_type);
 
     // Create a stream for the response
     const responseStream = createSseStream(async (stream) => {
@@ -120,7 +182,7 @@ async function handleChatSession({
   stream
 }) {
   // Initialize services
-  const claudeService = createClaudeService();
+  const aiService = createGeminiService();
   const toolService = createToolService();
 
   // Initialize MCP client
@@ -180,7 +242,7 @@ async function handleChatSession({
     let finalMessage = { role: 'user', content: userMessage };
 
     while (finalMessage.stop_reason !== "end_turn") {
-      finalMessage = await claudeService.streamConversation(
+      finalMessage = await aiService.streamConversation(
         {
           messages: conversationHistory,
           promptType,
